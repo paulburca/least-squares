@@ -44,14 +44,20 @@ def calculate(data):
 
 def parse_points(func, data):
     xs = [float(i.get("x").get()) for i in data.values()]
-    ys = [func(x) for x in xs]
-    return xs, ys,
+    ys = [float(i.get("y").get()) for i in data.values()]
+    yfs = [func(x) for x in xs]
+    return xs, ys, yfs
 
 
-def create_plot(xs, ys):
+def create_plot(xs, ys, yfs):
     plt.xlabel("x")
     plt.ylabel("y")
-    plt.plot(xs, ys, color='red', label='Function')
+    plt.plot(xs, yfs, color='red', label='Function')
+    plt.scatter(xs, ys)
+    mx = max(max(xs), max(ys), max(yfs))
+    mn = min(min(xs), min(ys), min(yfs))
+    plt.xlim([mn - 0.5, mx + 0.5])
+    plt.ylim([mn - 0.5, mx + 0.5])
 
 
 def create_line():
@@ -68,9 +74,9 @@ def create_line():
     else:
         m, b = x
     func = make_function(m, b)
-    xs, ys = parse_points(func, data)
+    xs, ys, yfs = parse_points(func, data)
     plt.title("Function: (" + str(m) + ") * x + (" + str(b) + ")")
-    create_plot(xs, ys)
+    create_plot(xs, ys, yfs)
     plt.show()
 
 
