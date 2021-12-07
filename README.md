@@ -26,4 +26,5 @@ Ecuația de aproximare a unei funcții rezultată din metoda celor mai mici păt
   <li>tkinter - interfața grafică</li>
 </ul>
 
-
+# How it looks:
+![Screenshot](https://user-images.githubusercontent.com/48179464/144984935-f7c6a280-06d7-4572-b0f6-7a7e7349ba35.png)
