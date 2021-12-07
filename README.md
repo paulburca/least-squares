@@ -1,4 +1,4 @@
-# least-squares
+# least-squares - B29
 Realizați un utilitar pentru calcularea și afișarea ecuației de aproximare a unei funcții folosind
 metoda celor mai mici pătrate (liniar). 
 
