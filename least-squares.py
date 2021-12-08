@@ -29,12 +29,8 @@ def calculate(data):
 
     points = data
     for entry in points.values():
-        if type(entry) is Entry:
-            x = float(entry.get("x").get())
-            y = float(entry.get("y").get())
-        else:
-            x = float(entry.get("x"))
-            y = float(entry.get("y"))
+        x = float(entry.get("x"))
+        y = float(entry.get("y"))
         sumx += x
         sumy += y
         sumx2 += x * x
@@ -49,12 +45,8 @@ def calculate(data):
 
 
 def parse_points(func, data):
-    if type(data) is Entries:
-        xs = [float(i.get("x").get()) for i in data.values()]
-        ys = [float(i.get("y").get()) for i in data.values()]
-    else:
-        xs = [float(i.get("x")) for i in data.values()]
-        ys = [float(i.get("y")) for i in data.values()]
+    xs = [float(i.get("x")) for i in data.values()]
+    ys = [float(i.get("y")) for i in data.values()]
     yfs = [func(x) for x in xs]
     return xs, ys, yfs
 
@@ -77,6 +69,21 @@ def create_plot(xs, ys, yfs):
     plt.ylim([mn - 0.5, mx + 0.5])
 
 
+def create_line(data):
+    x = calculate(data)
+    if not x:
+        print_error("Invalid data")
+        return
+    else:
+        m, b = x
+    func = make_function(m, b)
+    xs, ys, yfs = parse_points(func, data)
+    plt.clf()
+    plt.title("Function: (" + str(m) + ") * x + (" + str(b) + ")")
+    create_plot(xs, ys, yfs)
+    plt.show()
+
+
 def parse_data(data):
     pairs = dict()
     temp = data.replace('(', '').split('),')
@@ -95,20 +102,6 @@ def parse_data(data):
         except ValueError:
             return False
     return pairs
-
-
-def create_line(data):
-    x = calculate(data)
-    if not x:
-        print_error("Invalid data")
-        return
-    else:
-        m, b = x
-    func = make_function(m, b)
-    xs, ys, yfs = parse_points(func, data)
-    plt.title("Function: (" + str(m) + ") * x + (" + str(b) + ")")
-    create_plot(xs, ys, yfs)
-    plt.show()
 
 
 def execute_file():
@@ -145,6 +138,9 @@ def execute_entries():
     if not entries.check_values():
         print_error("Invalid values")
         return
+    for entry in entries.entries.values():
+        data.update({i: {"x": float(entry.get("x").get()), "y": float(entry.get("y").get())}})
+        i += 1
     create_line(data)
 
 
@@ -160,16 +156,6 @@ def execute():
         execute_textbox()
     elif val == 3:
         execute_entries()
-
-
-def openfile():
-    filetypes = (
-        ('text files', '*.txt'),
-        ('All files', '*.*')
-    )
-    global f, file_label
-    f = fd.askopenfilename(filetypes=filetypes)
-    file_label.grid(column=1, row=3)
 
 
 class Entries:
@@ -208,6 +194,16 @@ class Entries:
             return True
         except ValueError:
             return False
+
+
+def openfile():
+    filetypes = (
+        ('text files', '*.txt'),
+        ('All files', '*.*')
+    )
+    global f, file_label
+    f = fd.askopenfilename(filetypes=filetypes)
+    file_label.grid(column=1, row=3)
 
 
 f = ''
