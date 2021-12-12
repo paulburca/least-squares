@@ -28,26 +28,6 @@ class Command:
     def run(self):
         pass
 
-    @staticmethod
-    def parse_data(data):
-        pairs = dict()
-        temp = data.replace('(', '').split('),')
-        i = 0
-        if len(temp) == 1:
-            return False
-        for t in temp:
-            vals = t.replace(')', '').replace(' ', '').split(',')
-            if len(vals) < 2:
-                return False
-            pairs.update({i: {"x": vals[0], "y": vals[1]}})
-            i += 1
-            try:
-                float(pairs.get(i - 1).get('x'))
-                float(pairs.get(i - 1).get('y'))
-            except ValueError:
-                return False
-        return pairs
-
 
 class ExecuteCommandHandler:
     def __init__(self, i):
@@ -73,22 +53,42 @@ class ExecuteCommand(Command):
     def run(self):
         pass
 
-    def parse_points(self, func, data):
+    def __parse_points(self, func, data):
         xs = [float(i.get("x")) for i in data.values()]
         ys = [float(i.get("y")) for i in data.values()]
         yfs = [func(x) for x in xs]
         self._plot.set_coordinates(xs, ys, yfs)
 
-    def create_line(self, data):
+    def _create_line(self, data):
         x = self._calculator.calculate(data)
         if not x:
             self._interface.get_error().print_error("Invalid data")
             return
         func = self._calculator.make_function()
-        self.parse_points(func, data)
+        self.__parse_points(func, data)
         m, b = x
         self._plot.set_coefficients(m, b)
         self._plot.create_plot()
+
+    @staticmethod
+    def parse_data(data):
+        pairs = dict()
+        temp = data.replace('(', '').split('),')
+        i = 0
+        if len(temp) == 1:
+            return False
+        for t in temp:
+            vals = t.replace(')', '').replace(' ', '').split(',')
+            if len(vals) < 2:
+                return False
+            pairs.update({i: {"x": vals[0], "y": vals[1]}})
+            i += 1
+            try:
+                float(pairs.get(i - 1).get('x'))
+                float(pairs.get(i - 1).get('y'))
+            except ValueError:
+                return False
+        return pairs
 
 
 class ExecuteFileCommand(ExecuteCommand):
@@ -101,7 +101,7 @@ class ExecuteFileCommand(ExecuteCommand):
             if not values:
                 self._interface.get_error().print_error("Invalid values")
             else:
-                self.create_line(values)
+                self._create_line(values)
                 self._plot.show()
         else:
             self._interface.get_error().print_error("File not\nselected")
@@ -117,7 +117,7 @@ class ExecuteTextCommand(ExecuteCommand):
         if not values:
             self._interface.get_error().print_error("Invalid values")
         else:
-            self.create_line(values)
+            self._create_line(values)
             self._plot.show()
 
 
@@ -132,7 +132,7 @@ class ExecuteDataCommand(ExecuteCommand):
         for entry in entries.get_entries().values():
             data.update({i: {"x": float(entry.get("x").get()), "y": float(entry.get("y").get())}})
             i += 1
-        self.create_line(data)
+        self._create_line(data)
         self._plot.show()
 
 
@@ -230,25 +230,25 @@ class Plot:
 
 class Entries:
     def __init__(self, i):
-        self.interface = i
+        self.__interface = i
         self.__entries = dict()
         self.__start = 4
         self.__length = 0
 
     def add(self):
-        self.interface.get_error().hide_error()
+        self.__interface.get_error().hide_error()
         if self.__length != 35:
-            entry1 = ttk.Entry(self.interface.get_frame())
-            entry2 = ttk.Entry(self.interface.get_frame())
+            entry1 = ttk.Entry(self.__interface.get_frame())
+            entry2 = ttk.Entry(self.__interface.get_frame())
             self.__entries.update({self.__length: {"x": entry1, "y": entry2}})
             self.__length += 1
             entry1.grid(column=0, row=self.__length + self.__start)
             entry2.grid(column=1, row=self.__length + self.__start)
         else:
-            self.interface.get_error().print_error("Maximum set\nof values: 35")
+            self.__interface.get_error().print_error("Maximum set\nof values: 35")
 
     def remove(self):
-        self.interface.hide_error()
+        self.__interface.hide_error()
         if self.__length != 2:
             self.__length -= 1
             entryx = self.__entries.get(self.__length).get("x")
@@ -257,7 +257,7 @@ class Entries:
             entryx.destroy()
             entryy.destroy()
         else:
-            self.interface.get_error().print_error("Minimum set\nof values: 2")
+            self.__interface.get_error().print_error("Minimum set\nof values: 2")
 
     def check_values(self):
         try:
