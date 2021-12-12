@@ -3,10 +3,14 @@ from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog as fd
 import matplotlib.pyplot as plt
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 
 class Command:
+    def __init__(self):
+        self.__calculator = Calculator()
+        self.__plot = Plot()
+        self.__interface = interface
     @abstractmethod
     def run(self):
         pass
@@ -34,57 +38,85 @@ class Command:
 
 class ExecuteCommandHandler:
     def __init__(self):
+        self.__interface = interface
         self.__cmds = dict()
-        self.__cmds[0] = interface.print_error
+        self.__cmds[0] = self.__interface.print_error
         self.__cmds[1] = ExecuteFileCommand().run
         self.__cmds[2] = ExecuteTextCommand().run
         self.__cmds[3] = ExecuteDataCommand().run
-        interface.hide_error()
+        self.__interface.hide_error()
 
     def execute(self):
         self.__cmds[interface.get_var().get()]()
 
 
-class ExecuteFileCommand(Command):
+class ExecuteCommand(Command):
+
+    @abstractmethod
     def run(self):
-        f = interface.get_file_name()
+        pass
+
+    def parse_points(self, func, data):
+        xs = [float(i.get("x")) for i in data.values()]
+        ys = [float(i.get("y")) for i in data.values()]
+        yfs = [func(x) for x in xs]
+        return xs, ys, yfs
+
+
+class ExecuteFileCommand(ExecuteCommand):
+    def run(self):
+        f = self.__interface.get_file_name()
         if f:
             with open(f, 'r') as t:
                 txt = t.read()
             values = self.parse_data(txt)
             if not values:
-                interface.print_error("Invalid values")
+                self.__interface.print_error("Invalid values")
             else:
-                create_line(values)
+                self.__plot.create_line(values)
         else:
-            interface.print_error("File not\nselected")
+            self.__interface.print_error("File not\nselected")
 
 
-class ExecuteTextCommand(Command):
+class ExecuteTextCommand(ExecuteCommand):
     def run(self):
-        txt = interface.get_text().get("1.0", "end")
+        txt = self.__interface.get_text().get("1.0", "end")
         if len(txt) == 1:
-            interface.print_error("No data in\nthe textbox")
+            self.__interface.print_error("No data in\nthe textbox")
             return
         values = self.parse_data(txt)
         if not values:
-            interface.print_error("Invalid values")
+            self.__interface.print_error("Invalid values")
         else:
-            create_line(values)
+            self.__plot.create_line(values)
 
 
-class ExecuteDataCommand(Command):
+class ExecuteDataCommand(ExecuteCommand):
     def run(self):
-        entries = interface.get_entries()
+        entries = self.__interface.get_entries()
         data = dict()
         i = 0
         if not entries.check_values():
-            interface.print_error("Invalid values")
+            self.__interface.print_error("Invalid values")
             return
         for entry in entries.get_entries().values():
             data.update({i: {"x": float(entry.get("x").get()), "y": float(entry.get("y").get())}})
             i += 1
-        create_line(data)
+        self.__plot.create_line(data)
+
+
+class FileOpenCommand(Command):
+    def run(self):
+        filetypes = (
+            ('text files', '*.txt'),
+            ('All files', '*.*')
+        )
+        file_label = self.__interface.get_file_label()
+        file_label.grid_forget()
+        self.__interface.set_file_name(fd.askopenfilename(filetypes=filetypes))
+        if not self.__interface.get_file_name():
+            file_label.config(text="File not selected")
+        file_label.grid(column=1, row=3)
 
 
 class Calculator:
@@ -94,7 +126,6 @@ class Calculator:
 
     def make_function(self):
         def func(x): return self.__m * x + self.__b
-
         return func
 
     def calculate(self, data):
@@ -119,20 +150,23 @@ class Calculator:
             return False
         self.__m = m
         self.__b = b
-
-    def parse_points(self, func, data):
-        xs = [float(i.get("x")) for i in data.values()]
-        ys = [float(i.get("y")) for i in data.values()]
-        yfs = [func(x) for x in xs]
-        return xs, ys, yfs
+        return True
 
 
 class Plot:
     def __init__(self):
         self.__m = 0
         self.__b = 0
+        self.__xs = []
+        self.__ys = []
+        self.__yfs = []
 
-    def create_plot(self, xs, ys, yfs):
+    def create_plot(self):
+        xs = self.__xs
+        ys = self.__ys
+        yfs = self.__yfs
+        plt.clf()
+        plt.title("Function: (" + str(self.__m) + ") * x + (" + str(self.__b) + ")")
         plt.xlabel("x")
         plt.ylabel("y")
         plt.plot(xs, yfs, color='red', label='Function')
@@ -149,25 +183,23 @@ class Plot:
         plt.xlim([mn - 0.5, mx + 0.5])
         plt.ylim([mn - 0.5, mx + 0.5])
 
+
     def create_line(self, data):
-        x = calculate(data)
+        x = self.__calculator.calculate(data)
         if not x:
             interface.print_error("Invalid data")
             return
         else:
             m, b = x
-        func = make_function(m, b)
-        xs, ys, yfs = parse_points(func, data)
-        plt.clf()
-        plt.title("Function: (" + str(m) + ") * x + (" + str(b) + ")")
-        self.create_plot(xs, ys, yfs)
+        func = self.__calculator.make_function()
+        xs, ys, yfs = self.parse_points(func, data)
+        self.__plot.create_plot(xs, ys, yfs)
+
+
+    def show(self):
         plt.show()
 
-
-
-
 class Entries:
-
     def __init__(self, i):
         self.interface = i
         self.__entries = dict()
@@ -219,7 +251,7 @@ class Interface:
             return root, frm
 
         def build_button(frm):
-            ttk.Button(frm, text="Calculate", command=execute).grid(column=1, row=0)
+            ttk.Button(frm, text="Calculate", command=ExecuteCommandHandler.execute).grid(column=1, row=0)
 
         def build_error(frm):
             error = ttk.Label(frm)
@@ -293,17 +325,6 @@ class Interface:
 
     def hide_error(self):
         self.__error.grid_forget()
-
-    def openfile(self):
-        filetypes = (
-            ('text files', '*.txt'),
-            ('All files', '*.*')
-        )
-        self.__file_label.grid_forget()
-        self.set_file_name(fd.askopenfilename(filetypes=filetypes))
-        if not self.__file_name:
-            self.__file_label.config(text="File not selected")
-        self.__file_label.grid(column=1, row=3)
 
     def show(self):
         self.__root.mainloop()
