@@ -20,9 +20,9 @@ class Error:
 
 class Command:
     def __init__(self, i):
-        self.__calculator = Calculator()
-        self.__plot = Plot()
-        self.__interface = i
+        self._calculator = Calculator()
+        self._plot = Plot()
+        self._interface = i
 
     @abstractmethod
     def run(self):
@@ -53,14 +53,18 @@ class ExecuteCommandHandler:
     def __init__(self, i):
         self.__interface = i
         self.__cmds = dict()
-        self.__cmds[0] = i.get_error().print_error
         self.__cmds[1] = ExecuteFileCommand(i).run
         self.__cmds[2] = ExecuteTextCommand(i).run
         self.__cmds[3] = ExecuteDataCommand(i).run
-        self.__interface.hide_error()
+        self.__interface.get_error().hide_error()
 
     def execute(self):
-        self.__cmds[self.__interface.get_var().get()]()
+        var = self.__interface.get_var().get()
+        if var == 0:
+            self.__interface.get_error().print_error("Method not\nselected")
+        else:
+            self.__cmds[var]()
+        print("")
 
 
 class ExecuteCommand(Command):
@@ -73,58 +77,63 @@ class ExecuteCommand(Command):
         xs = [float(i.get("x")) for i in data.values()]
         ys = [float(i.get("y")) for i in data.values()]
         yfs = [func(x) for x in xs]
-        self.__plot.set_coordinates(xs, ys, yfs)
+        self._plot.set_coordinates(xs, ys, yfs)
 
     def create_line(self, data):
-        x = self.__calculator.calculate(data)
+        x = self._calculator.calculate(data)
         if not x:
-            self.__interface.get_error().print_error("Invalid data")
+            self._interface.get_error().print_error("Invalid data")
             return
-        func = self.__calculator.make_function()
+        func = self._calculator.make_function()
         self.parse_points(func, data)
-        self.__plot.create_plot()
+        m, b = x
+        self._plot.set_coefficients(m, b)
+        self._plot.create_plot()
 
 
 class ExecuteFileCommand(ExecuteCommand):
     def run(self):
-        f = self.__interface.get_file_name()
+        f = self._interface.get_file_name()
         if f:
             with open(f, 'r') as t:
                 txt = t.read()
             values = self.parse_data(txt)
             if not values:
-                self.__interface.get_error().print_error("Invalid values")
+                self._interface.get_error().print_error("Invalid values")
             else:
                 self.create_line(values)
+                self._plot.show()
         else:
-            self.__interface.get_error().print_error("File not\nselected")
+            self._interface.get_error().print_error("File not\nselected")
 
 
 class ExecuteTextCommand(ExecuteCommand):
     def run(self):
-        txt = self.__interface.get_text().get("1.0", "end")
+        txt = self._interface.get_text().get("1.0", "end")
         if len(txt) == 1:
-            self.__interface.get_error().print_error("No data in\nthe textbox")
+            self._interface.get_error().print_error("No data in\nthe textbox")
             return
         values = self.parse_data(txt)
         if not values:
-            self.__interface.get_error().print_error("Invalid values")
+            self._interface.get_error().print_error("Invalid values")
         else:
             self.create_line(values)
+            self._plot.show()
 
 
 class ExecuteDataCommand(ExecuteCommand):
     def run(self):
-        entries = self.__interface.get_entries()
+        entries = self._interface.get_entries()
         data = dict()
         i = 0
         if not entries.check_values():
-            self.__interface.get_error().print_error("Invalid values")
+            self._interface.get_error().print_error("Invalid values")
             return
         for entry in entries.get_entries().values():
             data.update({i: {"x": float(entry.get("x").get()), "y": float(entry.get("y").get())}})
             i += 1
         self.create_line(data)
+        self._plot.show()
 
 
 class FileOpenCommand(Command):
@@ -133,10 +142,10 @@ class FileOpenCommand(Command):
             ('text files', '*.txt'),
             ('All files', '*.*')
         )
-        file_label = self.__interface.get_file_label()
+        file_label = self._interface.get_file_label()
         file_label.grid_forget()
-        self.__interface.set_file_name(fd.askopenfilename(filetypes=filetypes))
-        if not self.__interface.get_file_name():
+        self._interface.set_file_name(fd.askopenfilename(filetypes=filetypes))
+        if not self._interface.get_file_name():
             file_label.config(text="File not selected")
         file_label.grid(column=1, row=3)
 
@@ -172,7 +181,7 @@ class Calculator:
             return False
         self.__m = m
         self.__b = b
-        return True
+        return m, b
 
 
 class Plot:
@@ -210,6 +219,10 @@ class Plot:
         self.__ys = ys
         self.__yfs = yfs
 
+    def set_coefficients(self, m, b):
+        self.__m = m
+        self.__b = b
+
     @staticmethod
     def show():
         plt.show()
@@ -223,7 +236,7 @@ class Entries:
         self.__length = 0
 
     def add(self):
-        self.interface.hide_error()
+        self.interface.get_error().hide_error()
         if self.__length != 35:
             entry1 = ttk.Entry(self.interface.get_frame())
             entry2 = ttk.Entry(self.interface.get_frame())
