@@ -6,11 +6,24 @@ import matplotlib.pyplot as plt
 from abc import abstractmethod
 
 
+class Error:
+    def __init__(self, frm):
+        self.__error = ttk.Label(frm)
+
+    def print_error(self, data):
+        self.__error.config(text=data)
+        self.__error.grid(column=2, row=0)
+
+    def hide_error(self):
+        self.__error.grid_forget()
+
+
 class Command:
-    def __init__(self):
+    def __init__(self, i):
         self.__calculator = Calculator()
         self.__plot = Plot()
-        self.__interface = interface
+        self.__interface = i
+
     @abstractmethod
     def run(self):
         pass
@@ -37,17 +50,17 @@ class Command:
 
 
 class ExecuteCommandHandler:
-    def __init__(self):
-        self.__interface = interface
+    def __init__(self, i):
+        self.__interface = i
         self.__cmds = dict()
-        self.__cmds[0] = self.__interface.print_error
-        self.__cmds[1] = ExecuteFileCommand().run
-        self.__cmds[2] = ExecuteTextCommand().run
-        self.__cmds[3] = ExecuteDataCommand().run
+        self.__cmds[0] = i.get_error().print_error
+        self.__cmds[1] = ExecuteFileCommand(i).run
+        self.__cmds[2] = ExecuteTextCommand(i).run
+        self.__cmds[3] = ExecuteDataCommand(i).run
         self.__interface.hide_error()
 
     def execute(self):
-        self.__cmds[interface.get_var().get()]()
+        self.__cmds[self.__interface.get_var().get()]()
 
 
 class ExecuteCommand(Command):
@@ -60,7 +73,16 @@ class ExecuteCommand(Command):
         xs = [float(i.get("x")) for i in data.values()]
         ys = [float(i.get("y")) for i in data.values()]
         yfs = [func(x) for x in xs]
-        return xs, ys, yfs
+        self.__plot.set_coordinates(xs, ys, yfs)
+
+    def create_line(self, data):
+        x = self.__calculator.calculate(data)
+        if not x:
+            self.__interface.get_error().print_error("Invalid data")
+            return
+        func = self.__calculator.make_function()
+        self.parse_points(func, data)
+        self.__plot.create_plot()
 
 
 class ExecuteFileCommand(ExecuteCommand):
@@ -71,24 +93,24 @@ class ExecuteFileCommand(ExecuteCommand):
                 txt = t.read()
             values = self.parse_data(txt)
             if not values:
-                self.__interface.print_error("Invalid values")
+                self.__interface.get_error().print_error("Invalid values")
             else:
-                self.__plot.create_line(values)
+                self.create_line(values)
         else:
-            self.__interface.print_error("File not\nselected")
+            self.__interface.get_error().print_error("File not\nselected")
 
 
 class ExecuteTextCommand(ExecuteCommand):
     def run(self):
         txt = self.__interface.get_text().get("1.0", "end")
         if len(txt) == 1:
-            self.__interface.print_error("No data in\nthe textbox")
+            self.__interface.get_error().print_error("No data in\nthe textbox")
             return
         values = self.parse_data(txt)
         if not values:
-            self.__interface.print_error("Invalid values")
+            self.__interface.get_error().print_error("Invalid values")
         else:
-            self.__plot.create_line(values)
+            self.create_line(values)
 
 
 class ExecuteDataCommand(ExecuteCommand):
@@ -97,12 +119,12 @@ class ExecuteDataCommand(ExecuteCommand):
         data = dict()
         i = 0
         if not entries.check_values():
-            self.__interface.print_error("Invalid values")
+            self.__interface.get_error().print_error("Invalid values")
             return
         for entry in entries.get_entries().values():
             data.update({i: {"x": float(entry.get("x").get()), "y": float(entry.get("y").get())}})
             i += 1
-        self.__plot.create_line(data)
+        self.create_line(data)
 
 
 class FileOpenCommand(Command):
@@ -183,21 +205,15 @@ class Plot:
         plt.xlim([mn - 0.5, mx + 0.5])
         plt.ylim([mn - 0.5, mx + 0.5])
 
+    def set_coordinates(self, xs, ys, yfs):
+        self.__xs = xs
+        self.__ys = ys
+        self.__yfs = yfs
 
-    def create_line(self, data):
-        x = self.__calculator.calculate(data)
-        if not x:
-            interface.print_error("Invalid data")
-            return
-        else:
-            m, b = x
-        func = self.__calculator.make_function()
-        xs, ys, yfs = self.parse_points(func, data)
-        self.__plot.create_plot(xs, ys, yfs)
-
-
-    def show(self):
+    @staticmethod
+    def show():
         plt.show()
+
 
 class Entries:
     def __init__(self, i):
@@ -216,7 +232,7 @@ class Entries:
             entry1.grid(column=0, row=self.__length + self.__start)
             entry2.grid(column=1, row=self.__length + self.__start)
         else:
-            self.interface.print_error("Maximum set\nof values: 35")
+            self.interface.get_error().print_error("Maximum set\nof values: 35")
 
     def remove(self):
         self.interface.hide_error()
@@ -228,7 +244,7 @@ class Entries:
             entryx.destroy()
             entryy.destroy()
         else:
-            self.interface.print_error("Minimum set\nof values: 2")
+            self.interface.get_error().print_error("Minimum set\nof values: 2")
 
     def check_values(self):
         try:
@@ -251,10 +267,10 @@ class Interface:
             return root, frm
 
         def build_button(frm):
-            ttk.Button(frm, text="Calculate", command=ExecuteCommandHandler.execute).grid(column=1, row=0)
+            ttk.Button(frm, text="Calculate", command=ExecuteCommandHandler(self).execute).grid(column=1, row=0)
 
         def build_error(frm):
-            error = ttk.Label(frm)
+            error = Error(frm)
             return error
 
         def build_checkboxes(frm):
@@ -266,7 +282,7 @@ class Interface:
             return var
 
         def build_file(frm):
-            ttk.Button(frm, text="Upload file", command=self.openfile).grid(column=0, row=3)
+            ttk.Button(frm, text="Upload file", command=FileOpenCommand(self).run).grid(column=0, row=3)
             file_label = ttk.Label(frm, text="File uploaded")
             return file_label
 
@@ -287,8 +303,8 @@ class Interface:
             return entries
 
         self.__root, self.__frm = build_frame()
-        build_button(self.__frm)
         self.__error = build_error(self.__frm)
+        build_button(self.__frm)
         self.__var = build_checkboxes(self.__frm)
         self.__file_label = build_file(self.__frm)
         self.__file_name = ''
@@ -318,13 +334,6 @@ class Interface:
 
     def get_entries(self):
         return self.__entries
-
-    def print_error(self, data):
-        self.__error.config(text=data)
-        interface.get_error().grid(column=2, row=0)
-
-    def hide_error(self):
-        self.__error.grid_forget()
 
     def show(self):
         self.__root.mainloop()
