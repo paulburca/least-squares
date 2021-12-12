@@ -93,6 +93,19 @@ def parse_data(data):
     return pairs
 
 
+def openfile():
+    filetypes = (
+        ('text files', '*.txt'),
+        ('All files', '*.*')
+    )
+    file_label = interface.get_file_label()
+    interface.get_file_label().grid_forget()
+    interface.set_file_name(fd.askopenfilename(filetypes=filetypes))
+    if not interface.get_file_name():
+        file_label.config(text="File not selected")
+    file_label.grid(column=1, row=3)
+
+
 def execute_file():
     f = interface.get_file_name()
     if f:
@@ -126,7 +139,7 @@ def execute_entries():
     if not entries.check_values():
         interface.print_error("Invalid values")
         return
-    for entry in entries.entries.values():
+    for entry in entries.get_entries().values():
         data.update({i: {"x": float(entry.get("x").get()), "y": float(entry.get("y").get())}})
         i += 1
     create_line(data)
@@ -146,32 +159,32 @@ def execute():
 
 
 class Entries:
-    entries = dict()
-    start = 4
-    length = 0
 
     def __init__(self, i):
         self.interface = i
+        self.__entries = dict()
+        self.__start = 4
+        self.__length = 0
 
     def add(self):
         self.interface.hide_error()
-        if self.length != 35:
+        if self.__length != 35:
             entry1 = ttk.Entry(self.interface.get_frame())
             entry2 = ttk.Entry(self.interface.get_frame())
-            self.entries.update({self.length: {"x": entry1, "y": entry2}})
-            self.length += 1
-            entry1.grid(column=0, row=self.length + self.start)
-            entry2.grid(column=1, row=self.length + self.start)
+            self.__entries.update({self.__length: {"x": entry1, "y": entry2}})
+            self.__length += 1
+            entry1.grid(column=0, row=self.__length + self.__start)
+            entry2.grid(column=1, row=self.__length + self.__start)
         else:
             self.interface.print_error("Maximum set\nof values: 35")
 
     def remove(self):
         self.interface.hide_error()
-        if self.length != 2:
-            self.length -= 1
-            entryx = self.entries.get(self.length).get("x")
-            entryy = self.entries.get(self.length).get("y")
-            self.entries.pop(self.length)
+        if self.__length != 2:
+            self.__length -= 1
+            entryx = self.__entries.get(self.__length).get("x")
+            entryy = self.__entries.get(self.__length).get("y")
+            self.__entries.pop(self.__length)
             entryx.destroy()
             entryy.destroy()
         else:
@@ -179,24 +192,14 @@ class Entries:
 
     def check_values(self):
         try:
-            [float(i.get("x").get()) for i in self.entries.values()]
-            [float(i.get("y").get()) for i in self.entries.values()]
+            [float(i.get("x").get()) for i in self.__entries.values()]
+            [float(i.get("y").get()) for i in self.__entries.values()]
             return True
         except ValueError:
             return False
 
-
-def openfile():
-    filetypes = (
-        ('text files', '*.txt'),
-        ('All files', '*.*')
-    )
-    file_label = interface.get_file_label()
-    interface.get_file_label().grid_forget()
-    interface.set_file_name(fd.askopenfilename(filetypes=filetypes))
-    if not interface.get_file_name():
-        file_label.config(text="File not selected")
-    file_label.grid(column=1, row=3)
+    def get_entries(self):
+        return self.__entries
 
 
 class Interface:
