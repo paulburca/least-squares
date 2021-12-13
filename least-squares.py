@@ -44,7 +44,6 @@ class ExecuteCommandHandler:
             self.__interface.get_error().print_error("Method not\nselected")
         else:
             self.__cmds[var]()
-        print("")
 
 
 class ExecuteCommand(Command):
@@ -62,23 +61,24 @@ class ExecuteCommand(Command):
     def _create_line(self, data):
         x = self._calculator.calculate(data)
         if not x:
-            self._interface.get_error().print_error("Invalid data")
-            return
+            self._interface.get_error().print_error("Function impossible\n to create")
+        m, b = x
         func = self._calculator.make_function()
         self.__parse_points(func, data)
-        m, b = x
+
         self._plot.set_coefficients(m, b)
         self._plot.create_plot()
+        self._plot.show()
 
     @staticmethod
     def parse_data(data):
         pairs = dict()
-        temp = data.replace('(', '').split('),')
+        temp = data.replace(' ', '').replace('(', '').split('),')
         i = 0
         if len(temp) == 1:
             return False
         for t in temp:
-            vals = t.replace(')', '').replace(' ', '').split(',')
+            vals = t.replace(')', '').split(',')
             if len(vals) < 2:
                 return False
             pairs.update({i: {"x": vals[0], "y": vals[1]}})
@@ -102,7 +102,6 @@ class ExecuteFileCommand(ExecuteCommand):
                 self._interface.get_error().print_error("Invalid values")
             else:
                 self._create_line(values)
-                self._plot.show()
         else:
             self._interface.get_error().print_error("File not\nselected")
 
@@ -118,7 +117,6 @@ class ExecuteTextCommand(ExecuteCommand):
             self._interface.get_error().print_error("Invalid values")
         else:
             self._create_line(values)
-            self._plot.show()
 
 
 class ExecuteDataCommand(ExecuteCommand):
@@ -133,20 +131,18 @@ class ExecuteDataCommand(ExecuteCommand):
             data.update({i: {"x": float(entry.get("x").get()), "y": float(entry.get("y").get())}})
             i += 1
         self._create_line(data)
-        self._plot.show()
 
 
 class FileOpenCommand(Command):
     def run(self):
-        filetypes = (
-            ('text files', '*.txt'),
-            ('All files', '*.*')
-        )
+        filetypes = [('Text files', '*.txt')]
         file_label = self._interface.get_file_label()
         file_label.grid_forget()
         self._interface.set_file_name(fd.askopenfilename(filetypes=filetypes))
         if not self._interface.get_file_name():
             file_label.config(text="File not selected")
+        else:
+            file_label.config(text="File uploaded")
         file_label.grid(column=1, row=3)
 
 
@@ -175,13 +171,11 @@ class Calculator:
             sumxy += x * y
         n = len(points)
         try:
-            m = (n * sumxy - sumx * sumy) / (n * sumx2 - sumx * sumx)
-            b = (sumy - m * sumx) / n
+            self.__m = (n * sumxy - sumx * sumy) / (n * sumx2 - sumx * sumx)
+            self.__b = (sumy - self.__m * sumx) / n
         except ZeroDivisionError:
-            return False
-        self.__m = m
-        self.__b = b
-        return m, b
+            pass
+        return self.__m, self.__b
 
 
 class Plot:
@@ -197,7 +191,12 @@ class Plot:
         ys = self.__ys
         yfs = self.__yfs
         plt.clf()
-        plt.title("Function: (" + str(self.__m) + ") * x + (" + str(self.__b) + ")")
+        if self.__m == self.__b == 0:
+            plt.title("Function: x = " + str(xs[0]) + " [note:x, not y]")
+        else:
+            plt.title("Function: (" + str(round(self.__m, 5)) + ") * x + (" + str(round(self.__b, 5)) + ")")
+            for x, y, yf in zip(xs, ys, yfs):
+                plt.plot([x, x], [y, yf], color='black', linestyle='dashed')
         plt.xlabel("x")
         plt.ylabel("y")
         plt.plot(xs, yfs, color='red', label='Function')
@@ -205,9 +204,6 @@ class Plot:
         labels = [f"({x},{y})" for x, y in zip(xs, ys)]
         for label, x, y in zip(labels, xs, ys):
             plt.annotate(label, xy=(x, y), xytext=(5, -5), textcoords='offset points')
-        for x, y, yf in zip(xs, ys, yfs):
-            label = str(abs(y - yf))
-            plt.plot([x, x], [y, yf], color='black', linestyle='dashed', label=label)
         plt.plot(xs, ys, color="blue")
         mx = max(max(xs), max(ys), max(yfs))
         mn = min(min(xs), min(ys), min(yfs))
@@ -248,7 +244,7 @@ class Entries:
             self.__interface.get_error().print_error("Maximum set\nof values: 35")
 
     def remove(self):
-        self.__interface.hide_error()
+        self.__interface.get_error().hide_error()
         if self.__length != 2:
             self.__length -= 1
             entryx = self.__entries.get(self.__length).get("x")
@@ -274,7 +270,7 @@ class Entries:
 class Interface:
     def __init__(self):
         def build_frame():
-            root = Tk()
+            root = Tk(className="Least Squares")
             frm = ttk.Frame(root, padding=10)
             frm.grid()
             return root, frm
