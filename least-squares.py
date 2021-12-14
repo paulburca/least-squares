@@ -52,20 +52,18 @@ class ExecuteCommand(Command):
     def run(self):
         pass
 
-    def __parse_points(self, func, data):
+    @staticmethod
+    def __parse_points(func, data):
         xs = [float(i.get("x")) for i in data.values()]
         ys = [float(i.get("y")) for i in data.values()]
         yfs = [func(x) for x in xs]
-        self._plot.set_coordinates(xs, ys, yfs)
+        return xs, ys, yfs
 
     def _create_line(self, data):
-        x = self._calculator.calculate(data)
-        if not x:
-            self._interface.get_error().print_error("Function impossible\n to create")
-        m, b = x
+        m, b = self._calculator.calculate(data)
         func = self._calculator.make_function()
-        self.__parse_points(func, data)
-
+        xs, ys, yfs = self.__parse_points(func, data)
+        self._plot.set_coordinates(xs, ys, yfs)
         self._plot.set_coefficients(m, b)
         self._plot.create_plot()
         self._plot.show()
@@ -192,7 +190,7 @@ class Plot:
         yfs = self.__yfs
         plt.clf()
         if self.__m == self.__b == 0:
-            plt.title("Function: x = " + str(xs[0]) + " [note:x, not y]")
+            plt.title("x = " + str(xs[0]) + " [note:x, not y]")
         else:
             plt.title("Function: (" + str(round(self.__m, 5)) + ") * x + (" + str(round(self.__b, 5)) + ")")
             for x, y, yf in zip(xs, ys, yfs):
@@ -270,7 +268,7 @@ class Entries:
 class Interface:
     def __init__(self):
         def build_frame():
-            root = Tk(className="Least Squares")
+            root = Tk(className="least squares")
             frm = ttk.Frame(root, padding=10)
             frm.grid()
             return root, frm
