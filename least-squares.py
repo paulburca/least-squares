@@ -73,8 +73,6 @@ class ExecuteCommand(Command):
         pairs = dict()
         temp = data.replace(' ', '').replace('(', '').split('),')
         i = 0
-        if len(temp) == 1:
-            return False
         for t in temp:
             vals = t.replace(')', '').split(',')
             if len(vals) < 2:

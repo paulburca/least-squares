@@ -24,6 +24,7 @@ Ecuația de aproximare a unei funcții rezultată din metoda celor mai mici păt
 <ul>
   <li>matplotlib - afișarea plot-ului</li>
   <li>tkinter - interfața grafică</li>
+  <li>abc (abstractmethod) - metode abstracte</li>
 </ul>
 
 # How it looks:
